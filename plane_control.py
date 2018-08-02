@@ -1,40 +1,78 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-PI = 3.14159
+
+def normalize_angle(x):
+    """Normalize angle to the range [pi, -pi]."""
+    x = (x + np.pi) % (2.0*np.pi)
+
+    if x < 0:
+        x += 2.0*np.pi
+
+    return x - np.pi
+
+class PIDController(object):
+    def __init__(self, k_p=0.0, k_d=0.0, k_i=0.0, cmd_max=0.0, cmd_min=0.0):
+        self.cum_error = 0.0
+
+        self.k_p = k_p
+        self.k_i = k_i
+        self.k_d = k_d
+
+        self.cmd_max = cmd_max
+        self.cmd_min = cmd_min
+
+    def run(self, error, error_dot=0.0, feedforward=0.0):
+        p = self.k_p * error
+        d = self.k_d * error_dot
+
+        cmd = p + d + feedforward
+
+        if self.cmd_min < cmd < self.cmd_max:
+            self.cum_error += error
+
+            i = self.k_i * self.cum_error
+            cmd += i
+
+        return cmd
+
 class LongitudinalAutoPilot(object):
     def __init__(self):
         self.max_throttle_rpm = 2500
-        self.max_elevator = 30.0*PI/180.0
+        self.max_elevator = np.radians(30.0)
 
         self.min_throttle = 0.0
         self.max_throttle = 1.0
-        self.max_pitch_cmd = 30.0*np.pi/180.0
-        self.max_pitch_cmd2 = 45.0*np.pi/180.0
+        self.max_pitch_cmd = np.radians(30.0)
+        self.max_pitch_cmd2 = np.radians(45.0)
 
         self.speed_int = 0.0
         self.alt_int = 0.0
         self.climb_speed_int = 0.0
 
-
+        # Controllers
+        self.pitch_controller = PIDController(k_p = 1.0, k_d=0.0)
 
         return
 
-
-
-    """Used to calculate the elevator command required to acheive the target
-    pitch
-
-        Args:
-            pitch: in radians
-            pitch_rate: in radians/sec
-            pitch_cmd: in radians
-
-        Returns:
-            elevator_cmd: in percentage elevator [-1,1]
-    """
     def pitch_loop(self, pitch, pitch_rate, pitch_cmd):
+        """Used to calculate the elevator command required to acheive the target
+        pitch
+
+            Args:
+                pitch: in radians
+                pitch_rate: in radians/sec
+                pitch_cmd: in radians
+
+            Returns:
+                elevator_cmd: in percentage elevator [-1,1]
+        """
         elevator_cmd = 0.0
         # STUDENT CODE HERE
+        pitch_rate_cmd = 0.0
+        error = normalize_angle(pitch_cmd - pitch)
+        error_dot = pitch_rate - pitch_rate_cmd
+
+        elevator_cmd = self.pitch_controller.run(error, error_dot)
 
         return elevator_cmd
 
