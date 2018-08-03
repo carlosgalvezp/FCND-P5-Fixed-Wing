@@ -50,9 +50,10 @@ class LongitudinalAutoPilot(object):
         self.climb_speed_int = 0.0
 
         # Controllers
-        self.pitch_controller = PIDController(k_p = 1.0, k_d=0.0)
-
-        return
+        self.pitch_controller = PIDController(k_p = 1.0, k_d = 0.0)
+        self.altitude_controller = PIDController(k_p = 1.0, k_d = 0.0, k_i = 0.1,
+                                                 cmd_min = -self.max_pitch_cmd,
+                                                 cmd_max =  self.max_pitch_cmd)
 
     def pitch_loop(self, pitch, pitch_rate, pitch_cmd):
         """Used to calculate the elevator command required to acheive the target
@@ -70,7 +71,7 @@ class LongitudinalAutoPilot(object):
         # STUDENT CODE HERE
         pitch_rate_cmd = 0.0
         error = normalize_angle(pitch_cmd - pitch)
-        error_dot = pitch_rate - pitch_rate_cmd
+        error_dot = pitch_rate_cmd - pitch_rate
 
         elevator_cmd = self.pitch_controller.run(error, error_dot)
 
@@ -90,7 +91,8 @@ class LongitudinalAutoPilot(object):
     def altitude_loop(self, altitude, altitude_cmd, dt):
         pitch_cmd = 0.0
         # STUDENT CODE HERE
-
+        error = altitude_cmd - altitude
+        pitch_cmd = self.altitude_controller.run(error)
         return pitch_cmd
 
 
