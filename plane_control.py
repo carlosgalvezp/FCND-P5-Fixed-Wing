@@ -11,9 +11,7 @@ def normalize_angle(x):
     return x - np.pi
 
 class PIDController(object):
-    def __init__(self, k_p=0.0, k_d=0.0, k_i=0.0, cmd_max=0.0, cmd_min=0.0):
-        self.cum_error = 0.0
-
+    def __init__(self, k_p=0.0, k_d=0.0, k_i=0.0, cmd_min=np.finfo(np.float64).min, cmd_max=np.finfo(np.float64).max):
         self.k_p = k_p
         self.k_i = k_i
         self.k_d = k_d
@@ -21,17 +19,23 @@ class PIDController(object):
         self.cmd_max = cmd_max
         self.cmd_min = cmd_min
 
-    def run(self, error, error_dot=0.0, feedforward=0.0):
+        self.cum_error = 0.0
+
+    def run(self, error, error_dot=0.0, dt=1.0, feedforward=0.0):
         p = self.k_p * error
         d = self.k_d * error_dot
 
         cmd = p + d + feedforward
 
         if self.cmd_min < cmd < self.cmd_max:
-            self.cum_error += error
+            # Prevent integrator windup
+            self.cum_error += error * dt
 
             i = self.k_i * self.cum_error
             cmd += i
+        else:
+            # Make sure the command is in its boundaries
+            cmd = min(max(cmd, self.cmd_min), self.cmd_max)
 
         return cmd
 
@@ -50,8 +54,10 @@ class LongitudinalAutoPilot(object):
         self.climb_speed_int = 0.0
 
         # Controllers
-        self.pitch_controller = PIDController(k_p = 1.0, k_d = 0.0)
-        self.altitude_controller = PIDController(k_p = 1.0, k_d = 0.0, k_i = 0.1,
+        self.pitch_controller = PIDController(k_p = 6.0, k_d = 1.0,
+                                              cmd_min = -self.max_elevator,
+                                              cmd_max = self.max_elevator)
+        self.altitude_controller = PIDController(k_p = 0.02, k_d = 0.0, k_i = 0.0025,
                                                  cmd_min = -self.max_pitch_cmd,
                                                  cmd_max =  self.max_pitch_cmd)
 
@@ -70,10 +76,10 @@ class LongitudinalAutoPilot(object):
         elevator_cmd = 0.0
         # STUDENT CODE HERE
         pitch_rate_cmd = 0.0
-        error = normalize_angle(pitch_cmd - pitch)
+        error = pitch_cmd - pitch
         error_dot = pitch_rate_cmd - pitch_rate
 
-        elevator_cmd = self.pitch_controller.run(error, error_dot)
+        elevator_cmd = self.pitch_controller.run(error=error, error_dot=error_dot)
 
         return elevator_cmd
 
@@ -92,7 +98,7 @@ class LongitudinalAutoPilot(object):
         pitch_cmd = 0.0
         # STUDENT CODE HERE
         error = altitude_cmd - altitude
-        pitch_cmd = self.altitude_controller.run(error)
+        pitch_cmd = self.altitude_controller.run(error=error, dt=dt)
         return pitch_cmd
 
 
