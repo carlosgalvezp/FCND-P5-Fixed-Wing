@@ -61,6 +61,10 @@ class LongitudinalAutoPilot(object):
                                                  cmd_min = -self.max_pitch_cmd,
                                                  cmd_max =  self.max_pitch_cmd)
 
+        self.airspeed_controller = PIDController(k_p = 0.1, k_d = 0.0, k_i = 0.01,
+                                                 cmd_min = self.min_throttle,
+                                                 cmd_max = self.max_throttle)
+
     def pitch_loop(self, pitch, pitch_rate, pitch_cmd):
         """Used to calculate the elevator command required to acheive the target
         pitch
@@ -116,7 +120,9 @@ class LongitudinalAutoPilot(object):
     def airspeed_loop(self, airspeed, airspeed_cmd, dt):
         throttle_cmd = 0.0
         # STUDENT CODE HERE
-
+        throttle_trim = 0.68  # From Scenario 1
+        error = airspeed_cmd - airspeed
+        throttle_cmd = self.airspeed_controller.run(error=error, dt=dt, feedforward=throttle_trim)
 
         return throttle_cmd
     """Used to calculate the pitch command required to maintain the commanded
