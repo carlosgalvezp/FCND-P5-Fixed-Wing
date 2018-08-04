@@ -167,10 +167,26 @@ class LongitudinalAutoPilot(object):
                           dt):
         pitch_cmd = 0.0
         throttle_cmd = 0.0
+
         # STUDENT CODE HERE
+        # Threshold after which to switch from climb/descend to altitude hold
+        altitude_threshold = 20  # [m]
 
+        if abs(altitude_cmd - altitude) > altitude_threshold:  # Climb/descend
+            pitch_cmd = self.airspeed_pitch_loop(airspeed, airspeed_cmd, dt)
 
-        return[pitch_cmd, throttle_cmd]
+            if altitude_cmd > altitude:
+                print('Climbing')
+                throttle_cmd = self.max_throttle  # Climb
+            else:
+                print('Descending')
+                throttle_cmd = self.min_throttle  # Descend
+        else:  # Altitude hold
+            print('Altitude hold')
+            pitch_cmd = self.altitude_loop(altitude, altitude_cmd, dt)
+            throttle_cmd = self.airspeed_loop(airspeed, airspeed_cmd, dt)
+
+        return [pitch_cmd, throttle_cmd]
 
 
 
