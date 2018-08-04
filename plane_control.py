@@ -197,9 +197,12 @@ class LateralAutoPilot:
         self.integrator_yaw = 0.0
         self.integrator_beta = 0.0
         self.gate = 1
-        self.max_roll = 60*np.pi/180.0
+        self.max_roll = np.radians(60.0)
         self.state = 1
 
+        self.roll_controller = PIDController(k_p = 10.0, k_d = 2.0,
+                                             cmd_min = -self.max_roll,
+                                             cmd_max = self.max_roll)
 
 
     """Used to calculate the commanded aileron based on the roll error
@@ -208,7 +211,7 @@ class LateralAutoPilot:
             phi_cmd: commanded roll in radians
             phi: roll angle in radians
             roll_rate: in radians/sec
-            T_s: timestep in sec
+            dt: timestep in sec
 
         Returns:
             aileron: in percent full aileron [-1,1]
@@ -217,10 +220,14 @@ class LateralAutoPilot:
                                 phi_cmd,  # commanded roll
                                 phi,    # actual roll
                                 roll_rate,
-                                T_s = 0.0):
+                                dt = 0.0):
         aileron = 0
         # STUDENT CODE HERE
+        roll_rate_cmd = 0.0
+        error = phi_cmd - phi
+        error_dot = roll_rate_cmd - roll_rate
 
+        aileron = self.roll_controller.run(error, error_dot)
 
         return aileron
 
@@ -230,7 +237,7 @@ class LateralAutoPilot:
             yaw_cmd: commanded yaw in radians
             yaw: roll angle in radians
             roll_rate: in radians/sec
-            T_s: timestep in sec
+            dt: timestep in sec
 
         Returns:
             roll_cmd: commanded roll in radians
@@ -238,7 +245,7 @@ class LateralAutoPilot:
     def yaw_hold_loop(self,
                          yaw_cmd,  # desired heading
                          yaw,     # actual heading
-                         T_s,
+                         dt,
                          roll_ff=0):
         roll_cmd = 0
 
@@ -252,14 +259,14 @@ class LateralAutoPilot:
 
         Args:
             beta: sideslip angle in radians
-            T_s: timestep in sec
+            dt: timestep in sec
 
         Returns:
             rudder: in percent full rudder [-1,1]
     """
     def sideslip_hold_loop(self,
                            beta, # sideslip angle
-                           T_s):
+                           dt):
         rudder = 0
         # STUDENT CODE HERE
 
