@@ -205,6 +205,10 @@ class LateralAutoPilot:
 
         self.sideslip_controller = PIDController(k_p = 10.0, k_i = 0.5)
 
+        self.yaw_controller = PIDController(k_p = 1.5, k_i = 0.0,
+                                            cmd_min = -self.max_roll,
+                                            cmd_max = self.max_roll)
+
 
     """Used to calculate the commanded aileron based on the roll error
 
@@ -244,14 +248,15 @@ class LateralAutoPilot:
             roll_cmd: commanded roll in radians
     """
     def yaw_hold_loop(self,
-                         yaw_cmd,  # desired heading
-                         yaw,     # actual heading
-                         dt,
-                         roll_ff=0):
+                      yaw_cmd,  # desired heading
+                      yaw,     # actual heading
+                      dt,
+                      roll_ff=0):
         roll_cmd = 0
 
         # STUDENT CODE HERE
-
+        error = normalize_angle(yaw_cmd - yaw)
+        roll_cmd = self.yaw_controller.run(error=error, dt=dt, feedforward=roll_ff)
 
         return roll_cmd
 
