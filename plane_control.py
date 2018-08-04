@@ -195,7 +195,6 @@ class LateralAutoPilot:
     def __init__(self):
         self.g = 9.81
         self.integrator_yaw = 0.0
-        self.integrator_beta = 0.0
         self.gate = 1
         self.max_roll = np.radians(60.0)
         self.state = 1
@@ -203,6 +202,8 @@ class LateralAutoPilot:
         self.roll_controller = PIDController(k_p = 10.0, k_d = 2.0,
                                              cmd_min = -self.max_roll,
                                              cmd_max = self.max_roll)
+
+        self.sideslip_controller = PIDController(k_p = 10.0, k_i = 0.5)
 
 
     """Used to calculate the commanded aileron based on the roll error
@@ -269,7 +270,8 @@ class LateralAutoPilot:
                            dt):
         rudder = 0
         # STUDENT CODE HERE
-
+        error = beta
+        rudder = self.sideslip_controller.run(error, dt=dt)
 
         return rudder
 
