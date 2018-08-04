@@ -54,7 +54,7 @@ class LongitudinalAutoPilot(object):
         self.climb_speed_int = 0.0
 
         # Controllers
-        self.pitch_controller = PIDController(k_p = 6.0, k_d = 1.0,
+        self.pitch_controller = PIDController(k_p = 4.0, k_d = 0.5,
                                               cmd_min = -self.max_elevator,
                                               cmd_max = self.max_elevator)
         self.altitude_controller = PIDController(k_p = 0.02, k_d = 0.0, k_i = 0.0025,
@@ -64,6 +64,10 @@ class LongitudinalAutoPilot(object):
         self.airspeed_controller = PIDController(k_p = 0.1, k_d = 0.0, k_i = 0.01,
                                                  cmd_min = self.min_throttle,
                                                  cmd_max = self.max_throttle)
+
+        self.airspeed_pitch_controller = PIDController(k_p = 0.1, k_d = 0.0, k_i = 0.05,
+                                                       cmd_min = -self.max_pitch_cmd2,
+                                                       cmd_max =  self.max_pitch_cmd2)
 
     def pitch_loop(self, pitch, pitch_rate, pitch_cmd):
         """Used to calculate the elevator command required to acheive the target
@@ -139,7 +143,9 @@ class LongitudinalAutoPilot(object):
     def airspeed_pitch_loop(self, airspeed, airspeed_cmd, dt):
         pitch_cmd = 0.0
         # STUDENT CODE HERE
-
+        error = airspeed_cmd - airspeed
+        # NOTE: more airspeed means less pitch, so we need to invert the error
+        pitch_cmd = self.airspeed_pitch_controller.run(error=-error, dt=dt)
 
         return pitch_cmd
 
