@@ -209,6 +209,8 @@ class LateralAutoPilot:
                                             cmd_min = -self.max_roll,
                                             cmd_max = self.max_roll)
 
+        self.straight_line_controller = PIDController(k_p=0.005)
+
 
     """Used to calculate the commanded aileron based on the roll error
 
@@ -295,8 +297,18 @@ class LateralAutoPilot:
                                local_position):
         course_cmd = 0
         # STUDENT CODE HERE
+        # https://en.wikipedia.org/w/index.php?title=Distance_from_a_point_to_a_line
+        # Create 2 points on the line
+        p1 = np.array([line_origin[0], line_origin[1]])
+        p2 = p1 + np.array([np.cos(line_course), np.sin(line_course)])
 
+        # Apply formula to compute perpendicular distance to line (CTE)
+        p0 = np.array([local_position[0], local_position[1]])
+        cte = ((p2[1] - p1[1])*p0[0] - (p2[0]-p1[0])*p0[1] + p2[0]*p1[1] - p2[1]*p1[0]) / np.linalg.norm(p2 - p1)
 
+        print(cte)
+
+        course_cmd = self.straight_line_controller.run(error=cte, feedforward=line_course)
         return course_cmd
 
     """Used to calculate the desired course angle based on radius error from
