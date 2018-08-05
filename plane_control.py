@@ -210,7 +210,7 @@ class LateralAutoPilot:
                                             cmd_max = self.max_roll)
 
         self.straight_line_controller = PIDController(k_p=0.005)
-        self.orbit_controller = PIDController(k_p=0.0075)
+        self.orbit_controller = PIDController(k_p=0.02)
 
 
     """Used to calculate the commanded aileron based on the roll error
@@ -336,13 +336,22 @@ class LateralAutoPilot:
 
         # Compute radius error
         error = distance - orbit_radius
+        if not clockwise:
+            error = -error
+
+        # Compute yaw at the orbit
+        center_to_vehicle = p2 - p1
+        center_to_vehicle_perp = np.array([-center_to_vehicle[1], center_to_vehicle[0]])
+        yaw_orbit = np.arctan2(center_to_vehicle_perp[1], center_to_vehicle_perp[0])
+
+        # Choose the yaw (positive or negative) that is more aligned with the vehicle's yaw
+        diff_plus = abs(normalize_angle(yaw_orbit - yaw))
+        diff_minus = abs(normalize_angle(-yaw_orbit - yaw))
+        if diff_minus < diff_plus:
+            yaw_orbit = -yaw_orbit
 
         # Compute command
-        course_cmd = self.orbit_controller.run(error=error, feedforward=yaw)
-
-        # Increasing yaw means clockwise rotation
-        if not clockwise:
-            course_cmd = -course_cmd
+        course_cmd = self.orbit_controller.run(error=error, feedforward=yaw_orbit)
 
         return course_cmd
 
