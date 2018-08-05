@@ -472,7 +472,55 @@ class LateralAutoPilot:
         cycle = False
 
         # STUDENT CODE HERE
+        orbit_radius = 500.0  # [m]
+        distance_threshold = 10.0  # [m]
 
+        gate_positions = [np.array([2100.0, 500.0, -450.0]),
+                          np.array([2600.0, -1119.0, -500.0]),
+                          np.array([984.0, -560.0, -400.0]),
+                          np.array([100.0, -2000.0, -450.0])]
+
+        orbit_centers = [[2100.0, 0.0, 0.0],
+                         [2100.0, -1119.0, 0.0],
+                         [600.0, -881.0, 0.0]]
+
+        transition_positions = [np.array([2600.0, 0.0]),
+                                np.array([1715.0, -1439.0]),
+                                np.array([100.0, -881.0])]
+
+        # Create a list of waypoints. Add the first one to make a straight line
+        combined_waypoints = [np.array([500.0, 0.0, 0.0])]
+        combined_waypoints.extend(gate_positions)
+        combined_waypoints.extend(transition_positions)
+
+        # Check if we should change state
+        if self.state < len(combined_waypoints):
+            next_waypoint_ne = combined_waypoints[self.state - 1][0:2]
+            local_position_ne = np.array(local_position[0:2])
+            vehicle_to_waypoint = next_waypoint_ne - local_position_ne
+            d_to_waypoint = np.linalg.norm(vehicle_to_waypoint)
+
+            if d_to_waypoint < 10.0:
+                print('==== CHANGING STATE ====')
+                self.state = self.state + 1
+                self._reset_integrators()
+
+        if self.state % 2 == 0:  # Coordinated turn
+            print('Turning')
+            idx_orbit = np.floor(self.state/3)   # 2, 4, 6
+            orbit_center = orbit_centers[idx_orbit]
+            clockwise = False
+
+            yaw_cmd = self.orbit_guidance(orbit_center, orbit_radius, local_position, yaw,
+                                          clockwise = clockwise)
+            roll_ff = self.coordinated_turn_ff(airspeed_cmd, orbit_radius, cw=clockwise)
+
+        else:                    # Straight line
+            print('Straight line')
+            line_origin = gate_positions[self.state-1]
+            line_end = gate_positions[self.state]
+            line_course = np.arctan2(line_end[1] - line_origin[1], line_end[0] - line_origin[0])
+            yaw_cmd = self.straight_line_guidance(line_origin, line_course, local_position)
 
 
         return(roll_ff, yaw_cmd, cycle)
