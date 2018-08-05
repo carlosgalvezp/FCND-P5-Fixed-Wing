@@ -39,6 +39,9 @@ class PIDController(object):
 
         return cmd
 
+    def reset(self):
+        self.cum_error = 0.0
+
 class LongitudinalAutoPilot(object):
     def __init__(self):
         self.max_throttle_rpm = 2500
@@ -307,8 +310,6 @@ class LateralAutoPilot:
         p0 = np.array([local_position[0], local_position[1]])
         cte = ((p2[1] - p1[1])*p0[0] - (p2[0]-p1[0])*p0[1] + p2[0]*p1[1] - p2[1]*p1[0]) / np.linalg.norm(p2 - p1)
 
-        print(cte)
-
         course_cmd = self.straight_line_controller.run(error=cte, feedforward=line_course)
         return course_cmd
 
@@ -341,14 +342,13 @@ class LateralAutoPilot:
 
         # Compute yaw at the orbit
         center_to_vehicle = p2 - p1
-        center_to_vehicle_perp = np.array([-center_to_vehicle[1], center_to_vehicle[0]])
-        yaw_orbit = np.arctan2(center_to_vehicle_perp[1], center_to_vehicle_perp[0])
 
-        # Choose the yaw (positive or negative) that is more aligned with the vehicle's yaw
-        diff_plus = abs(normalize_angle(yaw_orbit - yaw))
-        diff_minus = abs(normalize_angle(-yaw_orbit - yaw))
-        if diff_minus < diff_plus:
-            yaw_orbit = -yaw_orbit
+        if clockwise:
+            center_to_vehicle_perp = np.array([-center_to_vehicle[1], center_to_vehicle[0]])
+        else:
+            center_to_vehicle_perp = np.array([center_to_vehicle[1], -center_to_vehicle[0]])
+
+        yaw_orbit = np.arctan2(center_to_vehicle_perp[1], center_to_vehicle_perp[0])
 
         # Compute command
         course_cmd = self.orbit_controller.run(error=error, feedforward=yaw_orbit)
@@ -395,7 +395,58 @@ class LateralAutoPilot:
         roll_ff = 0
         yaw_cmd = 0
         # STUDENT CODE HERE
+        # Define gate positions
+        gate_positions = [np.array([500.0, 20.0, 0.0]),
+                          np.array([900.0, -380.0, 0.0]),
+                          np.array([600.0, -680.0, 0.0]),
+                          np.array([100.0, -680.0, 0.0])]
 
+        # Check if we should change state
+        if self.state < len(gate_positions):
+            next_gate_ne = gate_positions[self.state - 1][0:2]
+            local_position_ne = np.array(local_position[0:2])
+            vehicle_to_gate = next_gate_ne - local_position_ne
+            d_to_gate = np.linalg.norm(vehicle_to_gate)
+
+            if d_to_gate < 10.0:
+                print('==== CHANGING STATE ====')
+                self.state = self.state + 1
+                self._reset_integrators()
+
+        # State machine
+        if self.state == 1:  # Leg 1
+            print('Leg 1')
+            line_origin = [0.0, 20.0, 0.0]
+            line_end = gate_positions[self.state-1]
+
+            line_course = np.arctan2(line_end[1] - line_origin[1], line_end[0] - line_origin[0])
+            yaw_cmd = self.straight_line_guidance(line_origin, line_course, local_position)
+
+        elif self.state == 2:  # Leg 2
+            print('Leg 2')
+            orbit_center = [500.0, -380.0, 0.0]
+            orbit_radius = 400.0
+            clockwise = False
+
+            yaw_cmd = self.orbit_guidance(orbit_center, orbit_radius, local_position, yaw,
+                                          clockwise = clockwise)
+            roll_ff = self.coordinated_turn_ff(airspeed_cmd, orbit_radius, cw=clockwise)
+        elif self.state == 3:  # Leg 3
+            print('Leg 3')
+            orbit_center = [600.0, -380.0, 0.0]
+            orbit_radius = 300.0
+            clockwise = False
+
+            yaw_cmd = self.orbit_guidance(orbit_center, orbit_radius, local_position, yaw,
+                                          clockwise = clockwise)
+            roll_ff = self.coordinated_turn_ff(airspeed_cmd, orbit_radius, cw=clockwise)
+        elif self.state == 4:  # Leg 4
+            print('Leg 4')
+            line_origin = gate_positions[self.state-2]
+            line_end = gate_positions[self.state-1]
+
+            line_course = np.arctan2(line_end[1] - line_origin[1], line_end[0] - line_origin[0])
+            yaw_cmd = self.straight_line_guidance(line_origin, line_course, local_position)
 
         return(roll_ff,yaw_cmd)
 
@@ -426,6 +477,10 @@ class LateralAutoPilot:
 
         return(roll_ff, yaw_cmd, cycle)
 
+    def _reset_integrators(self):
+        self.roll_controller.reset()
+        self.sideslip_controller.reset()
+        self.yaw_controller.reset()
 
 
 def euler2RM(roll,pitch,yaw):
