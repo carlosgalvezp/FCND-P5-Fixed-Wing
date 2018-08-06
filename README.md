@@ -1,6 +1,11 @@
 # FCND - Fixed Wing Project #
 
-This is the readme for the Udacity Flying Car Nanodegree Fixed Wing Project
+This is the readme for the Udacity Flying Car Nanodegree Fixed Wing Project.
+
+## Final Result
+This video is the result of running the last scenario, **Scenario 12 - Fixed Wing Challenge**:
+
+[![Fixed Wing Challenge Results](http://img.youtube.com/vi/7a43NXFdv0I/0.jpg)](https://youtu.be/7a43NXFdv0I)
 
 For easy navigation throughout this document, here is an outline:
 
